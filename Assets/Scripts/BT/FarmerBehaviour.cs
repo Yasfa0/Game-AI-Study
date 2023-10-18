@@ -60,12 +60,12 @@ public class FarmerBehaviour : MonoBehaviour
         Node.Status s = GoToDestination(kerbau.transform.position);
         if (s == Node.Status.SUCCESS)
         {
-            if (!kerbau.GetComponent<PickableObject>().isPickedUp)
-            {
+            //if (!kerbau.GetComponent<PickableObject>().isPickedUp)
+            //{
                 //diamond.GetComponent<PickableObject>().PickUpObject();
                 kerbau.transform.parent = gameObject.transform;
                 return Node.Status.SUCCESS;
-            }
+            //}
             return Node.Status.FAILURE;
         }
         else

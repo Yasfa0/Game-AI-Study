@@ -41,9 +41,7 @@ public class RobberBehaviour : MonoBehaviour
 
         steal.AddChild(gotMoney);
         steal.AddChild(chooseDoor);
-        //steal.AddChild(toBackDoor);
         steal.AddChild(toDiamond);
-        //steal.AddChild(toBackDoor);
         steal.AddChild(toVan);
 
         tree.AddChild(steal);
@@ -56,12 +54,12 @@ public class RobberBehaviour : MonoBehaviour
         Node.Status s = GoToDestination(diamond.transform.position);
         if (s == Node.Status.SUCCESS)
         {
-            if (!diamond.GetComponent<PickableObject>().isPickedUp)
-            {
+            //if (!diamond.GetComponent<PickableObject>().isPickedUp)
+            //{
                 //diamond.GetComponent<PickableObject>().PickUpObject();
                 diamond.transform.parent = gameObject.transform;
                 return Node.Status.SUCCESS;
-            }
+            //}
             return Node.Status.FAILURE;
         }
         else
@@ -106,11 +104,11 @@ public class RobberBehaviour : MonoBehaviour
         Node.Status s = GoToDestination(door.transform.position);
         if(s == Node.Status.SUCCESS)
         {
-            if (!door.GetComponent<Lock>().isLocked)
-            {
+            //if (!door.GetComponent<Lock>().isLocked)
+            //{
                 door.SetActive(false);
                 return Node.Status.SUCCESS;
-            }
+            //}
             return Node.Status.FAILURE;
         }
         else
