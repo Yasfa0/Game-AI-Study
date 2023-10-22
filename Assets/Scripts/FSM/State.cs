@@ -5,8 +5,7 @@ using UnityEngine.AI;
 
 public class State
 {
-    public enum STATE { Idle, IdleAtk, IdleFighter, MoveToNeutral, WanderNeutral, Pursue, MoveBlock, BackToBase, MoveToBenteng, Shoot, 
-        FighterShoot,KnockAttack, Knockdown, KnockCapture, Imprisoned, Sticky }
+    public enum STATE { Idle, Patrol, Attack}
     public enum EVENT { ENTER, UPDATE, EXIT }
 
     public STATE name;
@@ -14,30 +13,28 @@ public class State
     protected State nextState;
 
     protected GameObject npc;
-    //protected Transform player;
-    protected List<Transform> opposingTeam = new List<Transform>();
     protected Transform oppTarget;
-    protected Animator anim;
+    //protected Animator anim;
     protected NavMeshAgent agent;
+
+    protected List<Transform> patrolPoints = new List<Transform>();
+    protected int patrolIndex = 0;
 
     float visDist = 15f;
     float visAngle = 30f;
 
-    protected float weapRange = 6f;
-    protected GameObject ammoPrefab;
-    protected Transform bulletSpawner;
+    protected float attackRange = 2f;
 
-    public State(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent)
+    public State(GameObject _npc, NavMeshAgent _agent, List<Transform> _patrolPoints, int _patrolIndex)
     {
         npc = _npc;
-        //player = _player;
-        opposingTeam = _oppTeam;
-        anim = _anim;
         agent = _agent;
+        patrolPoints = _patrolPoints;
+        patrolIndex = _patrolIndex;
         stage = EVENT.ENTER;
     }
 
-    public virtual void Enter() { oppTarget = CalcOppClosest(); stage = EVENT.UPDATE; }
+    public virtual void Enter() { stage = EVENT.UPDATE; }
     public virtual void Update() { stage = EVENT.UPDATE; }
     public virtual void Exit() { stage = EVENT.EXIT; }
 
@@ -55,477 +52,164 @@ public class State
         return this;
     }
 
+    public void SetPatrolPoints(List<Transform> input)
+    {
+        patrolPoints = input;
+    }
+
     public STATE GetCurrentSTATE()
     {
         return name;
     }
 
-    public Transform CalcOppClosest()
+    public bool CanSeeCivilain()
     {
-        List<Vector3> directions = new List<Vector3>();
-        float closestRange = Mathf.Infinity;
-        List<Transform> livingOpponent = new List<Transform>();
-        int closestIndex = 0;
-        List<GameObject> oppLists = new List<GameObject>();
+        if (GameObject.FindObjectOfType<CivilainBehaviour>() != null)
+        {
 
-        /*MapManager.Instance.FillTeams();
-        if(agent.gameObject.tag == "Enemy")
-        {
-            oppLists = MapManager.Instance.GetFriendlyTeam();
-        }
-        else
-        {
-            oppLists = MapManager.Instance.GetEnemyTeam();
-        }
+            oppTarget = GameObject.FindObjectOfType<CivilainBehaviour>().transform;
+            Vector3 direction = oppTarget.position - npc.transform.position;
 
-        //Check if opposing character is alive
-        foreach (GameObject opp in oppLists)
-        {
-            if (opp.GetComponent<CharacterBase>().GetCurrentHP() > 0)
+            float angle = Vector3.Angle(direction, npc.transform.forward);
+
+            if (direction.magnitude < visDist && angle <= visAngle)
             {
-                livingOpponent.Add(opp.transform);
-            }
-        }
-
-        foreach (Transform opp in livingOpponent)
-        {
-            directions.Add(opp.position - npc.transform.position);
-        }
-
-        for (int i = 0; i < directions.Count; i++)
-        {
-            if (directions[i].magnitude < closestRange)
-            {
-                closestRange = directions[i].magnitude;
-                closestIndex = i;
-            }
-        }*/
-
-        return livingOpponent[closestIndex];
-    }
-
-    public bool CanSeePlayer()
-    {
-        oppTarget = CalcOppClosest();
-        Vector3 direction = oppTarget.position - npc.transform.position;
-
-        float angle = Vector3.Angle(direction, npc.transform.forward);
-
-        if (direction.magnitude < visDist && angle <= visAngle)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    public bool OpponentEnterZone()
-    {
-        oppTarget = CalcOppClosest();
-        List<GameObject> charaList = new List<GameObject>();
-
-        /*if (agent.gameObject.tag == "Enemy")
-        {
-            charaList = MapManager.Instance.GetEnemyBaseChecker().GetDetectedCharaList();
-        }
-        else
-        {
-            charaList = MapManager.Instance.GetPlayerBaseChecker().GetDetectedCharaList();
-        }*/
-
-        
-        foreach (GameObject chara in charaList)
-        {
-            //Debug.Log(chara.name);
-            //Debug.Log(player.gameObject.name);
-            if (chara == oppTarget.gameObject)
-            {
-                Debug.Log("Character enter base Ally");
                 return true;
             }
         }
-        //Debug.Log("Player undetected");
-        Debug.Log("Nothing enter");
+
         return false;
     }
 
-    public bool CanSeePlayerDistance(float distance)
+    public bool CanAttack()
     {
-        oppTarget = CalcOppClosest();
-        Vector3 direction = oppTarget.position - npc.transform.position;
-        float angle = Vector3.Angle(direction, npc.transform.forward);
-
-        if (direction.magnitude < distance && angle <= visAngle)
+        if (GameObject.FindObjectOfType<CivilainBehaviour>() != null)
         {
-            return true;
+            oppTarget = GameObject.FindObjectOfType<CivilainBehaviour>().transform;
+            Vector3 direction = oppTarget.position - npc.transform.position;
+
+            if (direction.magnitude <= attackRange)
+            {
+                return true;
+            }
         }
         return false;
     }
 
-    public bool WithinShootDistance()
-    {
-        oppTarget = CalcOppClosest();
-        Vector3 direction = oppTarget.position - npc.transform.position;
-
-        if (direction.magnitude <= weapRange)
-        {
-            return true;
-        }
-        return false;
-    }
-
-    public bool WithinDistance()
-    {
-        oppTarget = CalcOppClosest();
-        Vector3 direction = oppTarget.position - npc.transform.position;
-        
-        if (direction.magnitude <= visDist)
-        {
-            return true;
-        }
-        return false;
-    }
-
-    public bool WithinCustomDistance(float distance)
-    {
-        oppTarget = CalcOppClosest();
-        Vector3 direction = oppTarget.position - npc.transform.position;
-
-        if (direction.magnitude <= distance)
-        {
-            //Debug.Log("Within Distance");
-            return true;
-        }
-        return false;
-    }
-
-    public bool CanAttackPlayer()
-    {
-        oppTarget = CalcOppClosest();
-        Vector3 direction = oppTarget.position - npc.transform.position;
-        if (direction.magnitude < weapRange)
-        {
-            return true;
-        }
-        return false;
-    }
 }
 
 public class Idle : State
 {
-    bool enteredBase = false;
-    Transform chaseLimit;
+    float startWait;
 
-    public Idle(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent) : base(_npc, _oppTeam, _anim, _agent)
+    public Idle(GameObject _npc, NavMeshAgent _agent, List<Transform> _patrolPoints, int _patrolIndex) : base(_npc, _agent,_patrolPoints, _patrolIndex)
     {
         name = STATE.Idle;
-        /*if (opposingTeam[0].gameObject.tag == "Enemy")
-        {
-            chaseLimit = MapManager.Instance.GetFriendlyChaseLimit();
-        }
-        else
-        {
-            chaseLimit = MapManager.Instance.GetEnemyChaseLimit();
-        }*/
     }
 
     public override void Enter()
     {
-        //anim.SetTrigger("isIdle");
-        //npc.transform.rotation = Quaternion.Euler(0, 180, 0);
         base.Enter();
+        startWait = Time.time;
     }
 
     public override void Update()
     {
-        //Debug.Log("Idling");
-        if (OpponentEnterZone())
+        if (CanAttack())
         {
-            enteredBase = true;
-        }
-
-        if (enteredBase)
-        {
-            nextState = new MoveBlock(npc, opposingTeam, anim, agent,chaseLimit);
-            stage = EVENT.EXIT; 
-        }
-
-        /*if (!WithinDistance())
-        {
-            //nextState = new Idle(npc, player, anim, agent);
-            nextState = new BackToBase(npc, player, anim, agent, chaseLimit);
+            nextState = new Attack(npc, agent,patrolPoints,patrolIndex);
             stage = EVENT.EXIT;
-        }*/
-    }
+        }
 
-    public override void Exit()
-    {
-        //anim.ResetTrigger("isIdle");
-        base.Exit();
-    }
-}
-
-public class Sticky : State
-{
-    float stickyDuration;
-    float startSticky;
-    State recoveryState;
-
-    public Sticky(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent, float duration, State returnState) : base(_npc, _oppTeam, _anim, _agent)
-    {
-        name = STATE.Sticky;
-        stickyDuration = duration;
-        recoveryState = returnState;
-    }
-
-    public override void Enter()
-    {
-        startSticky = Time.time;
-        //anim.SetTrigger("isIdle");
-        //npc.transform.rotation = Quaternion.Euler(0, 180, 0);
-        base.Enter();
-    }
-
-    public override void Update()
-    {
-        Debug.Log("Sticky");
-
-        if (Time.time - startSticky >= stickyDuration)
+        if(Time.time - startWait > 3)
         {
-            nextState = recoveryState;
+            Debug.Log("Patrol Index idle: " + patrolIndex);
+            nextState = new Patrol(npc,agent,patrolPoints,patrolIndex);
             stage = EVENT.EXIT;
         }
     }
 
     public override void Exit()
     {
-        //anim.ResetTrigger("isIdle");
         base.Exit();
     }
 }
-public class MoveBlock : State
-{
-    bool enteredBase = false;
-    protected Transform chaseLimit;
 
-    public MoveBlock(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent, Transform limit) : base(_npc, _oppTeam, _anim, _agent)
+public class Patrol : State
+{
+
+    public Patrol(GameObject _npc, NavMeshAgent _agent, List<Transform> _patrolPoints, int _patrolIndex) : base(_npc, _agent,_patrolPoints, _patrolIndex)
     {
-        name = STATE.MoveBlock;
-        chaseLimit = limit;
+        name = STATE.Patrol;
     }
 
     public override void Enter()
     {
-        oppTarget = CalcOppClosest();
         base.Enter();
     }
 
     public override void Update()
     {
-        enteredBase = OpponentEnterZone();
+        agent.SetDestination(patrolPoints[patrolIndex].position);
 
-        Vector3 target = new Vector3(oppTarget.position.x,oppTarget.position.y,Mathf.Clamp(oppTarget.position.z,chaseLimit.position.z,Mathf.Infinity));
-
-        agent.SetDestination(target);
-
-        if (WithinShootDistance())
+        if (CanAttack())
         {
-            nextState = new KnockAttack(npc, opposingTeam, anim, agent);
+            nextState = new Attack(npc, agent,patrolPoints,patrolIndex);
             stage = EVENT.EXIT;
         }
 
         if (agent.hasPath)
         {
-            if (!WithinDistance() && !enteredBase)
+            Vector3 direction = patrolPoints[patrolIndex].position - npc.transform.position;
+            if(direction.magnitude < 1)
             {
-                //nextState = new Idle(npc, player, anim, agent);
-                nextState = new BackToBase(npc, opposingTeam, anim, agent);
+                Debug.Log("Reached Destination");
+                patrolIndex++;
+                if (patrolIndex >= patrolPoints.Count)
+                {
+                    patrolIndex = 0;
+                }
+
+                nextState = new Idle(npc, agent,patrolPoints,patrolIndex);
                 stage = EVENT.EXIT;
             }
         }
+
     }
 
     public override void Exit()
     {
+        Debug.Log("Patrol Index Exit: " + patrolIndex);
         base.Exit();
     }
-
 }
 
-public class BackToBase : State
+public class Attack : State
 {
-    public BackToBase(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent) : base(_npc, _oppTeam, _anim, _agent)
-    {
-        name = STATE.BackToBase;
-    }
 
-    public override void Enter()
+    public Attack(GameObject _npc, NavMeshAgent _agent, List<Transform> _patrolPoints, int _patrolIndex) : base(_npc, _agent,_patrolPoints, _patrolIndex)
     {
-        /*List<GameObject> spawnPosts = MapManager.Instance.GetEnemyPosts();
-        agent.SetDestination(spawnPosts[Random.Range(0, spawnPosts.Count)].transform.position);
-        */
-        base.Enter();
-    }
-
-    public override void Update()
-    {
-       
-        if (agent.hasPath)
-        {
-            Debug.Log("Back");
-            if (agent.remainingDistance < 1)
-            {
-                nextState = new Idle(npc, opposingTeam, anim, agent);
-                stage = EVENT.EXIT;
-            }
-        }
-        
-    }
-
-    public override void Exit()
-    {
-        base.Exit();
-    }
-
-}
-public class KnockAttack : State
-{
-    float lastShot;
-    float shootCD = 0.5f;
-
-    public KnockAttack(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent) : base(_npc, _oppTeam, _anim, _agent)
-    {
-        name = STATE.KnockAttack;
+        name = STATE.Attack;
     }
 
     public override void Enter()
     {
         base.Enter();
+        oppTarget = GameObject.FindObjectOfType<CivilainBehaviour>().transform;
+        oppTarget.gameObject.SetActive(false);
     }
 
     public override void Update()
     {
-        Vector3 direction = oppTarget.position - npc.transform.position;
-        float angle = Vector3.Angle(direction, npc.transform.forward);
-        direction.y = 0;
-        npc.transform.rotation = Quaternion.Slerp(npc.transform.rotation, Quaternion.LookRotation(direction), 60f * Time.deltaTime);
-
-
-        //float angleLeft = Vector3.Angle(npc.transform.forward, player.position - npc.transform.position);
-        if (angle < 10 && Time.time - lastShot > shootCD)
+        if (!CanAttack())
         {
-            lastShot = Time.time;
-            //npc.GetComponent<CharacterBase>().Shoot();
-        }
-
-        /*if (!WithinShootDistance())
-        {
-            nextState = new BackToBase(npc, player, anim, agent, chaseLimit);
-            stage = EVENT.EXIT;
-        }*/
-
-        if (!WithinDistance())
-        {
-            //nextState = new Idle(npc, player, anim, agent);
-            nextState = new BackToBase(npc, opposingTeam, anim, agent);
+            nextState = new Idle(npc, agent,patrolPoints,patrolIndex);
             stage = EVENT.EXIT;
         }
-
     }
 
     public override void Exit()
     {
-        base.Exit();
-    }
-}
-
-public class KnockCapture : State
-{
-    Transform followTarget;
-
-    public KnockCapture(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent, Transform transTarget) : base(_npc, _oppTeam, _anim, _agent)
-    {
-        name = STATE.KnockCapture;
-        followTarget = transTarget;
-        agent.speed = 6;
-        agent.isStopped = false;
-    }
-
-    public override void Enter()
-    {
-        //anim.SetTrigger("isIdle");
-        //npc.transform.rotation = Quaternion.Euler(0, 180, 0);
-        agent.SetDestination(followTarget.position);
-        base.Enter();
-    }
-
-    public override void Update()
-    {
-        agent.SetDestination(followTarget.position);
-        Debug.Log("Follow Pos: " + followTarget.position);
-        Debug.Log("Knock Capture");
-    }
-
-    public override void Exit()
-    {
-        //anim.ResetTrigger("isIdle");
-        base.Exit();
-    }
-}
-
-public class Knockdown : State
-{
-
-    public Knockdown(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent) : base(_npc, _oppTeam, _anim, _agent)
-    {
-        name = STATE.Knockdown;
-        agent.speed = 0;
-        agent.isStopped = true;
-    }
-
-    public override void Enter()
-    {
-        //anim.SetTrigger("isIdle");
-        //npc.transform.rotation = Quaternion.Euler(0, 180, 0);
-        base.Enter();
-    }
-
-    public override void Update()
-    {
-        Debug.Log("Knockdown");
-    }
-
-    public override void Exit()
-    {
-        //anim.ResetTrigger("isIdle");
-        base.Exit();
-    }
-}
-
-public class Imprisoned : State
-{
-
-    public Imprisoned(GameObject _npc, List<Transform> _oppTeam, Animator _anim, NavMeshAgent _agent) : base(_npc, _oppTeam, _anim, _agent)
-    {
-        name = STATE.Imprisoned;
-        agent.speed = 0;
-        agent.isStopped = true;
-    }
-
-    public override void Enter()
-    {
-        //anim.SetTrigger("isIdle");
-        //npc.transform.rotation = Quaternion.Euler(0, 180, 0);
-        base.Enter();
-    }
-
-    public override void Update()
-    {
-    }
-
-    public override void Exit()
-    {
-        //anim.ResetTrigger("isIdle");
         base.Exit();
     }
 }

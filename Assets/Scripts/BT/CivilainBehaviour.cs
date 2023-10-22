@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class CivilainBehaviour : MonoBehaviour
 {
@@ -17,9 +19,10 @@ public class CivilainBehaviour : MonoBehaviour
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private GameObject targetMarker;
 
+    [SerializeField] private Text scoreText;
+    private int score = 0;
 
     List<GameObject> validItem = new List<GameObject>();
-
 
     private void Awake()
     {
@@ -105,7 +108,6 @@ public class CivilainBehaviour : MonoBehaviour
         return Node.Status.FAILURE;
     }
 
-
     public Node.Status TakeItem()
     {
         if(validItem.Count >= 1)
@@ -113,6 +115,8 @@ public class CivilainBehaviour : MonoBehaviour
             foreach (GameObject item in validItem)
             {
                 item.SetActive(false);
+                score += 20;
+                scoreText.text = "Score: " + score;
             }
 
             return Node.Status.SUCCESS;
@@ -123,7 +127,19 @@ public class CivilainBehaviour : MonoBehaviour
 
     private void Update()
     {
-        if (treeStatus != Node.Status.SUCCESS)
+        Debug.Log("Current State: " + tree.children[tree.currentChild].children[tree.children[tree.currentChild].currentChild].name);
+
+        if(Input.GetMouseButtonDown(0))
+        {
+            if(tree.children[tree.currentChild].currentChild != 0)
+            {
+                tree.children[tree.currentChild].currentChild = 0;
+                //tree.currentChild = 0;
+                //treeStatus = Node.Status.FAILURE;
+            }
+        }
+
+        //if (treeStatus != Node.Status.SUCCESS)
             treeStatus = tree.Process();
     }
 }
